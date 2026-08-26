@@ -310,6 +310,41 @@ app.post("/api/login", async (req, res) => {
 });
 
 // ===============================
+// PROJEKT NACH NUMMER SUCHEN
+// ===============================
+
+app.get("/api/projekte/:nummer", async (req, res) => {
+    try {
+        const nummer = req.params.nummer.trim();
+
+        if (!nummer) {
+            return res.status(400).json({
+                error: "Projektnummer fehlt."
+            });
+        }
+
+        const projekt = await db.collection("projekte").findOne({
+            projektnummer: nummer
+        });
+
+        if (!projekt) {
+            return res.status(404).json({
+                error: "Projekt nicht gefunden."
+            });
+        }
+
+        res.json(projekt);
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            error: "Projekt konnte nicht geladen werden."
+        });
+    }
+});
+
+// ===============================
 // SERVER STARTEN
 // ===============================
 
