@@ -368,6 +368,154 @@ app.get("/api/projekte/:nummer", async (req, res) => {
     }
 });
 
+// ===============================
+// NEUES PROJEKT SPEICHERN
+// ===============================
+
+app.post("/api/projekte", async (req, res) => {
+    try {
+
+        const {
+            projektnummer,
+            titel,
+            beschreibung,
+            anmerkung,
+            datum,
+            inArbeit,
+            fertig,
+            wartung
+        } = req.body;
+
+
+        // -------------------------------
+        // Pflichtfelder prüfen
+        // -------------------------------
+
+        if (!projektnummer) {
+            return res.status(400).json({
+                error: "Projektnummer fehlt."
+            });
+        }
+
+        if (!titel) {
+            return res.status(400).json({
+                error: "Projekttitel fehlt."
+            });
+        }
+
+
+        // -------------------------------
+        // Projektnummer vereinheitlichen
+        // -------------------------------
+
+        const nummer =
+            String(projektnummer).trim();
+
+
+        // -------------------------------
+        // Prüfen ob Projekt schon existiert
+        // -------------------------------
+
+        const vorhandenesProjekt =
+            await projekteCollection.findOne({
+                projektnummer: nummer
+            });
+
+
+        if (vorhandenesProjekt) {
+            return res.status(409).json({
+                error:
+                    "Diese Projektnummer existiert bereits."
+            });
+        }
+
+
+        // -------------------------------
+        // Neues Projekt
+        // -------------------------------
+
+        const neuesProjekt = {
+
+            projektnummer: nummer,
+
+            titel: String(titel).trim(),
+
+            beschreibung:
+                beschreibung
+                ? String(beschreibung).trim()
+                : "",
+
+            anmerkung:
+                anmerkung
+                ? String(anmerkung).trim()
+                : "",
+
+            datum:
+                datum
+                ? String(datum)
+                : "",
+
+            inArbeit:
+                Boolean(inArbeit),
+
+            fertig:
+                Boolean(fertig),
+
+            wartung:
+                Boolean(wartung),
+
+            erstelltAm:
+                new Date()
+        };
+
+
+        // -------------------------------
+        // In MongoDB speichern
+        // -------------------------------
+
+        const result =
+            await projekteCollection.insertOne(
+                neuesProjekt
+            );
+
+
+        console.log(
+            "Projekt gespeichert:",
+            nummer
+        );
+
+
+        // -------------------------------
+        // Antwort an Qt
+        // -------------------------------
+
+        res.status(201).json({
+
+            message:
+                "Projekt erfolgreich erstellt.",
+
+            id:
+                result.insertedId,
+
+            projekt:
+                neuesProjekt
+        });
+
+    }
+    catch (error) {
+
+        console.error(
+            "Fehler beim Speichern des Projekts:"
+        );
+
+        console.error(error);
+
+        res.status(500).json({
+            error:
+                "Projekt konnte nicht gespeichert werden."
+        });
+    }
+});
 
 // ===============================
 // SERVER STARTEN
