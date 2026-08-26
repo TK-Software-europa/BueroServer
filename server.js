@@ -252,6 +252,62 @@ app.delete("/api/benutzer/:id", async (req, res) => {
     }
 });
 
+// ===============================
+// LOGIN
+// ===============================
+
+app.post("/api/login", async (req, res) => {
+
+    try {
+
+        const { name, passwort } = req.body;
+
+        if (!name || !passwort) {
+            return res.status(400).json({
+                error: "Name und Passwort sind erforderlich."
+            });
+        }
+
+        const benutzer =
+            await benutzerCollection.findOne({
+                name: name
+            });
+
+        if (!benutzer) {
+            return res.status(401).json({
+                error: "Benutzername oder Passwort falsch."
+            });
+        }
+
+        const passwortRichtig =
+            await bcrypt.compare(
+                passwort,
+                benutzer.passwort
+            );
+
+        if (!passwortRichtig) {
+            return res.status(401).json({
+                error: "Benutzername oder Passwort falsch."
+            });
+        }
+
+        res.json({
+            message: "Login erfolgreich.",
+            id: benutzer._id,
+            name: benutzer.name,
+            rolle: benutzer.rolle
+        });
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            error: "Login konnte nicht durchgeführt werden."
+        });
+    }
+});
 
 // ===============================
 // SERVER STARTEN
