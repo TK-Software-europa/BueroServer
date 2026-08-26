@@ -6,7 +6,17 @@ const app = express();
 
 app.use(express.json());
 
+
+// =====================================================
+// MONGODB
+// =====================================================
+
 const mongoUri = process.env.MONGODB_URI;
+
+if (!mongoUri) {
+    console.error("MONGODB_URI fehlt.");
+    process.exit(1);
+}
 
 const client = new MongoClient(mongoUri);
 
@@ -15,52 +25,71 @@ let benutzerCollection;
 let projekteCollection;
 
 
-// ===============================
-// MongoDB verbinden
-// ===============================
+// =====================================================
+// MONGODB VERBINDEN
+// =====================================================
 
 async function connectDatabase() {
+
     try {
+
         await client.connect();
 
         db = client.db("Buero");
 
-        benutzerCollection = db.collection("benutzer");
-        projekteCollection = db.collection("projekte");
+        benutzerCollection =
+            db.collection("benutzer");
 
+        projekteCollection =
+            db.collection("projekte");
+
+        console.log("=================================");
         console.log("MongoDB erfolgreich verbunden.");
+        console.log("Datenbank: Buero");
+        console.log("=================================");
+
     }
     catch (error) {
-        console.error("MongoDB-Verbindung fehlgeschlagen:");
+
+        console.error(
+            "MongoDB-Verbindung fehlgeschlagen:"
+        );
+
         console.error(error);
+
         process.exit(1);
     }
 }
 
 
-// ===============================
-// Test
-// ===============================
+// =====================================================
+// TEST
+// =====================================================
 
 app.get("/", (req, res) => {
+
     res.json({
         status: "ok",
         message: "Büro-Server läuft"
     });
+
 });
 
 
-// ===============================
+// =====================================================
 // ALLE BENUTZER
-// ===============================
+// =====================================================
 
 app.get("/api/benutzer", async (req, res) => {
+
     try {
 
         const benutzer =
             await benutzerCollection
                 .find({})
-                .project({ passwort: 0 })
+                .project({
+                    passwort: 0
+                })
                 .toArray();
 
         res.json(benutzer);
@@ -68,63 +97,103 @@ app.get("/api/benutzer", async (req, res) => {
     }
     catch (error) {
 
+        console.error(
+            "Fehler beim Laden der Benutzer:"
+        );
+
         console.error(error);
 
         res.status(500).json({
-            error: "Benutzer konnten nicht geladen werden."
+            error:
+                "Benutzer konnten nicht geladen werden."
         });
     }
 });
 
 
-// ===============================
+// =====================================================
 // NEUEN BENUTZER ERSTELLEN
-// ===============================
+// =====================================================
 
 app.post("/api/benutzer", async (req, res) => {
+
     try {
 
-        const { name, passwort, rolle } = req.body;
+        const {
+            name,
+            passwort,
+            rolle
+        } = req.body;
+
 
         if (!name || !passwort || !rolle) {
+
             return res.status(400).json({
-                error: "Name, Passwort und Rolle sind erforderlich."
+                error:
+                    "Name, Passwort und Rolle sind erforderlich."
             });
         }
 
-        if (rolle !== "admin" && rolle !== "mitarbeiter") {
+
+        if (
+            rolle !== "admin" &&
+            rolle !== "mitarbeiter"
+        ) {
+
             return res.status(400).json({
-                error: "Ungültige Rolle."
+                error:
+                    "Ungültige Rolle."
             });
         }
+
 
         const vorhandenerBenutzer =
             await benutzerCollection.findOne({
                 name: name
             });
 
+
         if (vorhandenerBenutzer) {
+
             return res.status(409).json({
-                error: "Dieser Benutzer existiert bereits."
+                error:
+                    "Dieser Benutzer existiert bereits."
             });
         }
 
+
         const passwortHash =
-            await bcrypt.hash(passwort, 12);
+            await bcrypt.hash(
+                passwort,
+                12
+            );
+
 
         const neuerBenutzer = {
+
             name: name,
+
             passwort: passwortHash,
+
             rolle: rolle,
+
             erstelltAm: new Date()
         };
 
+
         const result =
-            await benutzerCollection.insertOne(neuerBenutzer);
+            await benutzerCollection.insertOne(
+                neuerBenutzer
+            );
+
 
         res.status(201).json({
-            message: "Benutzer erfolgreich erstellt.",
-            id: result.insertedId
+
+            message:
+                "Benutzer erfolgreich erstellt.",
+
+            id:
+                result.insertedId
         });
 
     }
@@ -133,71 +202,115 @@ app.post("/api/benutzer", async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-            error: "Benutzer konnte nicht erstellt werden."
+            error:
+                "Benutzer konnte nicht erstellt werden."
         });
     }
 });
 
 
-// ===============================
+// =====================================================
 // BENUTZER BEARBEITEN
-// ===============================
+// =====================================================
 
 app.put("/api/benutzer/:id", async (req, res) => {
+
     try {
 
-        const id = req.params.id;
+        const id =
+            req.params.id;
+
 
         if (!ObjectId.isValid(id)) {
+
             return res.status(400).json({
-                error: "Ungültige Benutzer-ID."
+                error:
+                    "Ungültige Benutzer-ID."
             });
         }
 
-        const { name, passwort, rolle } = req.body;
+
+        const {
+            name,
+            passwort,
+            rolle
+        } = req.body;
+
 
         const aenderungen = {};
+
 
         if (name) {
             aenderungen.name = name;
         }
 
+
         if (rolle) {
 
-            if (rolle !== "admin" && rolle !== "mitarbeiter") {
+            if (
+                rolle !== "admin" &&
+                rolle !== "mitarbeiter"
+            ) {
+
                 return res.status(400).json({
-                    error: "Ungültige Rolle."
+                    error:
+                        "Ungültige Rolle."
                 });
             }
 
-            aenderungen.rolle = rolle;
+            aenderungen.rolle =
+                rolle;
         }
+
 
         if (passwort) {
+
             aenderungen.passwort =
-                await bcrypt.hash(passwort, 12);
+                await bcrypt.hash(
+                    passwort,
+                    12
+                );
         }
 
-        if (Object.keys(aenderungen).length === 0) {
+
+        if (
+            Object.keys(aenderungen).length === 0
+        ) {
+
             return res.status(400).json({
-                error: "Keine Änderungen angegeben."
+                error:
+                    "Keine Änderungen angegeben."
             });
         }
+
 
         const result =
             await benutzerCollection.updateOne(
-                { _id: new ObjectId(id) },
-                { $set: aenderungen }
+
+                {
+                    _id:
+                        new ObjectId(id)
+                },
+
+                {
+                    $set:
+                        aenderungen
+                }
             );
 
+
         if (result.matchedCount === 0) {
+
             return res.status(404).json({
-                error: "Benutzer nicht gefunden."
+                error:
+                    "Benutzer nicht gefunden."
             });
         }
 
+
         res.json({
-            message: "Benutzer erfolgreich geändert."
+            message:
+                "Benutzer erfolgreich geändert."
         });
 
     }
@@ -206,40 +319,55 @@ app.put("/api/benutzer/:id", async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-            error: "Benutzer konnte nicht geändert werden."
+            error:
+                "Benutzer konnte nicht geändert werden."
         });
     }
 });
 
 
-// ===============================
+// =====================================================
 // BENUTZER LÖSCHEN
-// ===============================
+// =====================================================
 
 app.delete("/api/benutzer/:id", async (req, res) => {
+
     try {
 
-        const id = req.params.id;
+        const id =
+            req.params.id;
+
 
         if (!ObjectId.isValid(id)) {
+
             return res.status(400).json({
-                error: "Ungültige Benutzer-ID."
+                error:
+                    "Ungültige Benutzer-ID."
             });
         }
+
 
         const result =
             await benutzerCollection.deleteOne({
-                _id: new ObjectId(id)
+
+                _id:
+                    new ObjectId(id)
+
             });
 
+
         if (result.deletedCount === 0) {
+
             return res.status(404).json({
-                error: "Benutzer nicht gefunden."
+                error:
+                    "Benutzer nicht gefunden."
             });
         }
 
+
         res.json({
-            message: "Benutzer erfolgreich gelöscht."
+            message:
+                "Benutzer erfolgreich gelöscht."
         });
 
     }
@@ -248,37 +376,50 @@ app.delete("/api/benutzer/:id", async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-            error: "Benutzer konnte nicht gelöscht werden."
+            error:
+                "Benutzer konnte nicht gelöscht werden."
         });
     }
 });
 
 
-// ===============================
+// =====================================================
 // LOGIN
-// ===============================
+// =====================================================
 
 app.post("/api/login", async (req, res) => {
+
     try {
 
-        const { name, passwort } = req.body;
+        const {
+            name,
+            passwort
+        } = req.body;
+
 
         if (!name || !passwort) {
+
             return res.status(400).json({
-                error: "Name und Passwort sind erforderlich."
+                error:
+                    "Name und Passwort sind erforderlich."
             });
         }
+
 
         const benutzer =
             await benutzerCollection.findOne({
                 name: name
             });
 
+
         if (!benutzer) {
+
             return res.status(401).json({
-                error: "Benutzername oder Passwort falsch."
+                error:
+                    "Benutzername oder Passwort falsch."
             });
         }
+
 
         const passwortRichtig =
             await bcrypt.compare(
@@ -286,53 +427,107 @@ app.post("/api/login", async (req, res) => {
                 benutzer.passwort
             );
 
+
         if (!passwortRichtig) {
+
             return res.status(401).json({
-                error: "Benutzername oder Passwort falsch."
+                error:
+                    "Benutzername oder Passwort falsch."
             });
         }
 
+
         res.json({
-            message: "Login erfolgreich.",
-            id: benutzer._id,
-            name: benutzer.name,
-            rolle: benutzer.rolle
+
+            message:
+                "Login erfolgreich.",
+
+            id:
+                benutzer._id,
+
+            name:
+                benutzer.name,
+
+            rolle:
+                benutzer.rolle
         });
 
     }
     catch (error) {
 
+        console.error(
+            "Login-Fehler:"
+        );
+
         console.error(error);
 
         res.status(500).json({
-            error: "Login konnte nicht durchgeführt werden."
+            error:
+                "Login konnte nicht durchgeführt werden."
         });
     }
 });
 
 
-// ===============================
-// PROJEKT NACH NUMMER SUCHEN
-// ===============================
+// =====================================================
+// PROJEKT SUCHEN
+// =====================================================
 
 app.get("/api/projekte/:nummer", async (req, res) => {
+
     try {
 
         const nummer =
-            req.params.nummer.trim();
+            String(
+                req.params.nummer
+            ).trim();
 
-        console.log("Projektsuche:", nummer);
+
+        console.log(
+            "Projektsuche:",
+            nummer
+        );
+
 
         if (!nummer) {
+
             return res.status(400).json({
-                error: "Projektnummer fehlt."
+                error:
+                    "Projektnummer fehlt."
             });
         }
 
-        const projekt =
+
+        // Zuerst als String suchen
+        let projekt =
             await projekteCollection.findOne({
-                projektnummer: nummer
+
+                projektnummer:
+                    nummer
+
             });
+
+
+        // Falls die Nummer in MongoDB
+        // als Zahl gespeichert wurde
+        if (!projekt) {
+
+            const nummerAlsZahl =
+                Number(nummer);
+
+
+            if (!Number.isNaN(nummerAlsZahl)) {
+
+                projekt =
+                    await projekteCollection.findOne({
+
+                        projektnummer:
+                            nummerAlsZahl
+
+                    });
+            }
+        }
+
 
         if (!projekt) {
 
@@ -341,15 +536,19 @@ app.get("/api/projekte/:nummer", async (req, res) => {
                 nummer
             );
 
+
             return res.status(404).json({
-                error: "Projekt nicht gefunden."
+                error:
+                    "Projekt nicht gefunden."
             });
         }
+
 
         console.log(
             "Projekt gefunden:",
             projekt.projektnummer
         );
+
 
         res.json(projekt);
 
@@ -363,17 +562,34 @@ app.get("/api/projekte/:nummer", async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-            error: "Projekt konnte nicht geladen werden."
+            error:
+                "Projekt konnte nicht geladen werden."
         });
     }
 });
 
-// ===============================
-// NEUES PROJEKT SPEICHERN
-// ===============================
+
+// =====================================================
+// PROJEKT SPEICHERN
+// =====================================================
 
 app.post("/api/projekte", async (req, res) => {
+
     try {
+
+        console.log(
+            "---------------------------------"
+        );
+
+        console.log(
+            "Neues Projekt wird gespeichert."
+        );
+
+        console.log(
+            "Empfangene Daten:",
+            req.body
+        );
+
 
         const {
             projektnummer,
@@ -387,42 +603,86 @@ app.post("/api/projekte", async (req, res) => {
         } = req.body;
 
 
-        // -------------------------------
-        // Pflichtfelder prüfen
-        // -------------------------------
+        // ---------------------------------------------
+        // Projektnummer prüfen
+        // ---------------------------------------------
 
-        if (!projektnummer) {
+        if (
+            projektnummer === undefined ||
+            projektnummer === null ||
+            String(projektnummer).trim() === ""
+        ) {
+
             return res.status(400).json({
-                error: "Projektnummer fehlt."
+                error:
+                    "Projektnummer fehlt."
             });
         }
 
-        if (!titel) {
+
+        // ---------------------------------------------
+        // Titel prüfen
+        // ---------------------------------------------
+
+        if (
+            titel === undefined ||
+            titel === null ||
+            String(titel).trim() === ""
+        ) {
+
             return res.status(400).json({
-                error: "Projekttitel fehlt."
+                error:
+                    "Projekttitel fehlt."
             });
         }
 
-
-        // -------------------------------
-        // Projektnummer vereinheitlichen
-        // -------------------------------
 
         const nummer =
-            String(projektnummer).trim();
+            String(
+                projektnummer
+            ).trim();
 
 
-        // -------------------------------
-        // Prüfen ob Projekt schon existiert
-        // -------------------------------
+        // ---------------------------------------------
+        // Prüfen, ob Projekt bereits existiert
+        // ---------------------------------------------
 
-        const vorhandenesProjekt =
+        let vorhandenesProjekt =
             await projekteCollection.findOne({
-                projektnummer: nummer
+
+                projektnummer:
+                    nummer
+
             });
+
+
+        if (!vorhandenesProjekt) {
+
+            const nummerAlsZahl =
+                Number(nummer);
+
+
+            if (!Number.isNaN(nummerAlsZahl)) {
+
+                vorhandenesProjekt =
+                    await projekteCollection.findOne({
+
+                        projektnummer:
+                            nummerAlsZahl
+
+                    });
+            }
+        }
 
 
         if (vorhandenesProjekt) {
+
+            console.log(
+                "Projekt existiert bereits:",
+                nummer
+            );
+
+
             return res.status(409).json({
                 error:
                     "Diese Projektnummer existiert bereits."
@@ -430,30 +690,32 @@ app.post("/api/projekte", async (req, res) => {
         }
 
 
-        // -------------------------------
-        // Neues Projekt
-        // -------------------------------
+        // ---------------------------------------------
+        // Projekt erstellen
+        // ---------------------------------------------
 
         const neuesProjekt = {
 
-            projektnummer: nummer,
+            projektnummer:
+                nummer,
 
-            titel: String(titel).trim(),
+            titel:
+                String(titel).trim(),
 
             beschreibung:
                 beschreibung
-                ? String(beschreibung).trim()
-                : "",
+                    ? String(beschreibung).trim()
+                    : "",
 
             anmerkung:
                 anmerkung
-                ? String(anmerkung).trim()
-                : "",
+                    ? String(anmerkung).trim()
+                    : "",
 
             datum:
                 datum
-                ? String(datum)
-                : "",
+                    ? String(datum)
+                    : "",
 
             inArbeit:
                 Boolean(inArbeit),
@@ -469,9 +731,9 @@ app.post("/api/projekte", async (req, res) => {
         };
 
 
-        // -------------------------------
-        // In MongoDB speichern
-        // -------------------------------
+        // ---------------------------------------------
+        // MongoDB speichern
+        // ---------------------------------------------
 
         const result =
             await projekteCollection.insertOne(
@@ -480,14 +742,27 @@ app.post("/api/projekte", async (req, res) => {
 
 
         console.log(
-            "Projekt gespeichert:",
+            "Projekt erfolgreich gespeichert."
+        );
+
+        console.log(
+            "Projektnummer:",
             nummer
         );
 
+        console.log(
+            "MongoDB ID:",
+            result.insertedId
+        );
 
-        // -------------------------------
+        console.log(
+            "---------------------------------"
+        );
+
+
+        // ---------------------------------------------
         // Antwort an Qt
-        // -------------------------------
+        // ---------------------------------------------
 
         res.status(201).json({
 
@@ -505,33 +780,110 @@ app.post("/api/projekte", async (req, res) => {
     catch (error) {
 
         console.error(
-            "Fehler beim Speichern des Projekts:"
+            "FEHLER BEIM SPEICHERN DES PROJEKTS:"
+        );
+
+        console.error(error);
+
+
+        res.status(500).json({
+
+            error:
+                "Projekt konnte nicht gespeichert werden.",
+
+            details:
+                error.message
+        });
+    }
+});
+
+
+// =====================================================
+// ALLE PROJEKTE
+// =====================================================
+
+app.get("/api/projekte", async (req, res) => {
+
+    try {
+
+        const projekte =
+            await projekteCollection
+                .find({})
+                .sort({
+                    erstelltAm: -1
+                })
+                .toArray();
+
+
+        res.json(projekte);
+
+    }
+    catch (error) {
+
+        console.error(
+            "Fehler beim Laden der Projekte:"
         );
 
         console.error(error);
 
         res.status(500).json({
             error:
-                "Projekt konnte nicht gespeichert werden."
+                "Projekte konnten nicht geladen werden."
         });
     }
 });
 
-// ===============================
+
+// =====================================================
 // SERVER STARTEN
-// ===============================
+// =====================================================
 
 async function startServer() {
 
-    await connectDatabase();
+    try {
 
-    const PORT = process.env.PORT || 3000;
+        await connectDatabase();
 
-    app.listen(PORT, () => {
-        console.log(
-            `Büro-Server läuft auf Port ${PORT}`
+
+        const PORT =
+            process.env.PORT || 3000;
+
+
+        app.listen(
+            PORT,
+            () => {
+
+                console.log(
+                    "================================="
+                );
+
+                console.log(
+                    "Büro-Server läuft."
+                );
+
+                console.log(
+                    "Port:",
+                    PORT
+                );
+
+                console.log(
+                    "================================="
+                );
+            }
         );
-    });
+
+    }
+    catch (error) {
+
+        console.error(
+            "Server konnte nicht gestartet werden:"
+        );
+
+        console.error(error);
+
+        process.exit(1);
+    }
 }
+
 
 startServer();
