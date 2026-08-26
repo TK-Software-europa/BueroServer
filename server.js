@@ -43,10 +43,12 @@ async function connectDatabase() {
         projekteCollection =
             db.collection("projekte");
 
-        console.log("=================================");
+        console.log("---------------------------------");
         console.log("MongoDB erfolgreich verbunden.");
         console.log("Datenbank: Buero");
-        console.log("=================================");
+        console.log("Collection: benutzer");
+        console.log("Collection: projekte");
+        console.log("---------------------------------");
 
     }
     catch (error) {
@@ -178,6 +180,7 @@ app.post("/api/benutzer", async (req, res) => {
             rolle: rolle,
 
             erstelltAm: new Date()
+
         };
 
 
@@ -194,10 +197,15 @@ app.post("/api/benutzer", async (req, res) => {
 
             id:
                 result.insertedId
+
         });
 
     }
     catch (error) {
+
+        console.error(
+            "Fehler beim Erstellen des Benutzers:"
+        );
 
         console.error(error);
 
@@ -241,7 +249,10 @@ app.put("/api/benutzer/:id", async (req, res) => {
 
 
         if (name) {
-            aenderungen.name = name;
+
+            aenderungen.name =
+                name;
+
         }
 
 
@@ -296,6 +307,7 @@ app.put("/api/benutzer/:id", async (req, res) => {
                     $set:
                         aenderungen
                 }
+
             );
 
 
@@ -309,8 +321,10 @@ app.put("/api/benutzer/:id", async (req, res) => {
 
 
         res.json({
+
             message:
                 "Benutzer erfolgreich geändert."
+
         });
 
     }
@@ -366,8 +380,10 @@ app.delete("/api/benutzer/:id", async (req, res) => {
 
 
         res.json({
+
             message:
                 "Benutzer erfolgreich gelöscht."
+
         });
 
     }
@@ -450,6 +466,7 @@ app.post("/api/login", async (req, res) => {
 
             rolle:
                 benutzer.rolle
+
         });
 
     }
@@ -470,6 +487,55 @@ app.post("/api/login", async (req, res) => {
 
 
 // =====================================================
+// ALLE PROJEKTE
+// =====================================================
+
+app.get("/api/projekte", async (req, res) => {
+
+    try {
+
+        console.log(
+            "Alle Projekte werden geladen."
+        );
+
+
+        const projekte =
+            await projekteCollection
+                .find({})
+                .sort({
+                    erstelltAm: -1
+                })
+                .toArray();
+
+
+        console.log(
+            "Anzahl Projekte:",
+            projekte.length
+        );
+
+
+        res.json(projekte);
+
+    }
+    catch (error) {
+
+        console.error(
+            "Fehler beim Laden der Projekte:"
+        );
+
+        console.error(error);
+
+        res.status(500).json({
+
+            error:
+                "Projekte konnten nicht geladen werden."
+
+        });
+    }
+});
+
+
+// =====================================================
 // PROJEKT SUCHEN
 // =====================================================
 
@@ -484,7 +550,15 @@ app.get("/api/projekte/:nummer", async (req, res) => {
 
 
         console.log(
-            "Projektsuche:",
+            "---------------------------------"
+        );
+
+        console.log(
+            "Projektsuche:"
+        );
+
+        console.log(
+            "Nummer:",
             nummer
         );
 
@@ -498,7 +572,10 @@ app.get("/api/projekte/:nummer", async (req, res) => {
         }
 
 
-        // Zuerst als String suchen
+        // ---------------------------------------------
+        // Als String suchen
+        // ---------------------------------------------
+
         let projekt =
             await projekteCollection.findOne({
 
@@ -508,8 +585,10 @@ app.get("/api/projekte/:nummer", async (req, res) => {
             });
 
 
-        // Falls die Nummer in MongoDB
-        // als Zahl gespeichert wurde
+        // ---------------------------------------------
+        // Falls alte Daten als Zahl gespeichert sind
+        // ---------------------------------------------
+
         if (!projekt) {
 
             const nummerAlsZahl =
@@ -529,6 +608,10 @@ app.get("/api/projekte/:nummer", async (req, res) => {
         }
 
 
+        // ---------------------------------------------
+        // Nicht gefunden
+        // ---------------------------------------------
+
         if (!projekt) {
 
             console.log(
@@ -536,17 +619,30 @@ app.get("/api/projekte/:nummer", async (req, res) => {
                 nummer
             );
 
+            console.log(
+                "---------------------------------"
+            );
+
 
             return res.status(404).json({
+
                 error:
                     "Projekt nicht gefunden."
+
             });
         }
 
 
         console.log(
-            "Projekt gefunden:",
-            projekt.projektnummer
+            "Projekt gefunden:"
+        );
+
+        console.log(
+            projekt
+        );
+
+        console.log(
+            "---------------------------------"
         );
 
 
@@ -562,15 +658,17 @@ app.get("/api/projekte/:nummer", async (req, res) => {
         console.error(error);
 
         res.status(500).json({
+
             error:
                 "Projekt konnte nicht geladen werden."
+
         });
     }
 });
 
 
 // =====================================================
-// PROJEKT SPEICHERN
+// PROJEKT ERSTELLEN
 // =====================================================
 
 app.post("/api/projekte", async (req, res) => {
@@ -586,7 +684,10 @@ app.post("/api/projekte", async (req, res) => {
         );
 
         console.log(
-            "Empfangene Daten:",
+            "Empfangene Daten:"
+        );
+
+        console.log(
             req.body
         );
 
@@ -614,8 +715,10 @@ app.post("/api/projekte", async (req, res) => {
         ) {
 
             return res.status(400).json({
+
                 error:
                     "Projektnummer fehlt."
+
             });
         }
 
@@ -631,8 +734,10 @@ app.post("/api/projekte", async (req, res) => {
         ) {
 
             return res.status(400).json({
+
                 error:
                     "Projekttitel fehlt."
+
             });
         }
 
@@ -644,7 +749,7 @@ app.post("/api/projekte", async (req, res) => {
 
 
         // ---------------------------------------------
-        // Prüfen, ob Projekt bereits existiert
+        // Prüfen ob Projekt existiert
         // ---------------------------------------------
 
         let vorhandenesProjekt =
@@ -656,6 +761,7 @@ app.post("/api/projekte", async (req, res) => {
             });
 
 
+        // Alte Projekte als Zahl berücksichtigen
         if (!vorhandenesProjekt) {
 
             const nummerAlsZahl =
@@ -684,14 +790,16 @@ app.post("/api/projekte", async (req, res) => {
 
 
             return res.status(409).json({
+
                 error:
                     "Diese Projektnummer existiert bereits."
+
             });
         }
 
 
         // ---------------------------------------------
-        // Projekt erstellen
+        // Neues Projekt
         // ---------------------------------------------
 
         const neuesProjekt = {
@@ -703,18 +811,27 @@ app.post("/api/projekte", async (req, res) => {
                 String(titel).trim(),
 
             beschreibung:
-                beschreibung
-                    ? String(beschreibung).trim()
+                beschreibung !== undefined &&
+                beschreibung !== null
+                    ? String(
+                        beschreibung
+                    ).trim()
                     : "",
 
             anmerkung:
-                anmerkung
-                    ? String(anmerkung).trim()
+                anmerkung !== undefined &&
+                anmerkung !== null
+                    ? String(
+                        anmerkung
+                    ).trim()
                     : "",
 
             datum:
-                datum
-                    ? String(datum)
+                datum !== undefined &&
+                datum !== null
+                    ? String(
+                        datum
+                    )
                     : "",
 
             inArbeit:
@@ -727,7 +844,11 @@ app.post("/api/projekte", async (req, res) => {
                 Boolean(wartung),
 
             erstelltAm:
+                new Date(),
+
+            geaendertAm:
                 new Date()
+
         };
 
 
@@ -760,10 +881,6 @@ app.post("/api/projekte", async (req, res) => {
         );
 
 
-        // ---------------------------------------------
-        // Antwort an Qt
-        // ---------------------------------------------
-
         res.status(201).json({
 
             message:
@@ -774,6 +891,7 @@ app.post("/api/projekte", async (req, res) => {
 
             projekt:
                 neuesProjekt
+
         });
 
     }
@@ -793,42 +911,452 @@ app.post("/api/projekte", async (req, res) => {
 
             details:
                 error.message
+
         });
     }
 });
 
 
 // =====================================================
-// ALLE PROJEKTE
+// PROJEKT BEARBEITEN
 // =====================================================
 
-app.get("/api/projekte", async (req, res) => {
+app.put("/api/projekte/:nummer", async (req, res) => {
 
     try {
 
-        const projekte =
-            await projekteCollection
-                .find({})
-                .sort({
-                    erstelltAm: -1
-                })
-                .toArray();
+        const alteNummer =
+            String(
+                req.params.nummer
+            ).trim();
 
 
-        res.json(projekte);
+        console.log(
+            "---------------------------------"
+        );
+
+        console.log(
+            "Projekt wird bearbeitet:"
+        );
+
+        console.log(
+            "Alte Projektnummer:",
+            alteNummer
+        );
+
+
+        const {
+            projektnummer,
+            titel,
+            beschreibung,
+            anmerkung,
+            datum,
+            inArbeit,
+            fertig,
+            wartung
+        } = req.body;
+
+
+        // ---------------------------------------------
+        // Titel prüfen
+        // ---------------------------------------------
+
+        if (
+            titel === undefined ||
+            titel === null ||
+            String(titel).trim() === ""
+        ) {
+
+            return res.status(400).json({
+
+                error:
+                    "Projekttitel fehlt."
+
+            });
+        }
+
+
+        // ---------------------------------------------
+        // Neue Nummer
+        // ---------------------------------------------
+
+        const neueNummer =
+            projektnummer !== undefined &&
+            projektnummer !== null &&
+            String(projektnummer).trim() !== ""
+                ? String(
+                    projektnummer
+                ).trim()
+                : alteNummer;
+
+
+        // ---------------------------------------------
+        // Projekt suchen
+        // ---------------------------------------------
+
+        let vorhandenesProjekt =
+            await projekteCollection.findOne({
+
+                projektnummer:
+                    alteNummer
+
+            });
+
+
+        // Alte Zahl berücksichtigen
+        if (!vorhandenesProjekt) {
+
+            const alteNummerAlsZahl =
+                Number(alteNummer);
+
+
+            if (
+                !Number.isNaN(
+                    alteNummerAlsZahl
+                )
+            ) {
+
+                vorhandenesProjekt =
+                    await projekteCollection.findOne({
+
+                        projektnummer:
+                            alteNummerAlsZahl
+
+                    });
+            }
+        }
+
+
+        if (!vorhandenesProjekt) {
+
+            return res.status(404).json({
+
+                error:
+                    "Projekt nicht gefunden."
+
+            });
+        }
+
+
+        // ---------------------------------------------
+        // Prüfen ob neue Nummer bereits vergeben ist
+        // ---------------------------------------------
+
+        if (
+            neueNummer !== alteNummer
+        ) {
+
+            const nummerBereitsVorhanden =
+                await projekteCollection.findOne({
+
+                    projektnummer:
+                        neueNummer
+
+                });
+
+
+            if (nummerBereitsVorhanden) {
+
+                return res.status(409).json({
+
+                    error:
+                        "Die neue Projektnummer existiert bereits."
+
+                });
+            }
+        }
+
+
+        // ---------------------------------------------
+        // Änderungen
+        // ---------------------------------------------
+
+        const aenderungen = {
+
+            projektnummer:
+                neueNummer,
+
+            titel:
+                String(
+                    titel
+                ).trim(),
+
+            beschreibung:
+                beschreibung !== undefined &&
+                beschreibung !== null
+                    ? String(
+                        beschreibung
+                    ).trim()
+                    : "",
+
+            anmerkung:
+                anmerkung !== undefined &&
+                anmerkung !== null
+                    ? String(
+                        anmerkung
+                    ).trim()
+                    : "",
+
+            datum:
+                datum !== undefined &&
+                datum !== null
+                    ? String(
+                        datum
+                    )
+                    : "",
+
+            inArbeit:
+                Boolean(inArbeit),
+
+            fertig:
+                Boolean(fertig),
+
+            wartung:
+                Boolean(wartung),
+
+            geaendertAm:
+                new Date()
+
+        };
+
+
+        // ---------------------------------------------
+        // MongoDB aktualisieren
+        // ---------------------------------------------
+
+        const filter =
+            vorhandenesProjekt._id
+                ? {
+                    _id:
+                        vorhandenesProjekt._id
+                }
+                : {
+                    projektnummer:
+                        alteNummer
+                };
+
+
+        const result =
+            await projekteCollection.updateOne(
+
+                filter,
+
+                {
+                    $set:
+                        aenderungen
+                }
+
+            );
+
+
+        if (
+            result.matchedCount === 0
+        ) {
+
+            return res.status(404).json({
+
+                error:
+                    "Projekt nicht gefunden."
+
+            });
+        }
+
+
+        // ---------------------------------------------
+        // Aktualisiertes Projekt laden
+        // ---------------------------------------------
+
+        const projekt =
+            await projekteCollection.findOne({
+
+                _id:
+                    vorhandenesProjekt._id
+
+            });
+
+
+        console.log(
+            "Projekt erfolgreich geändert."
+        );
+
+        console.log(
+            "Neue Projektnummer:",
+            neueNummer
+        );
+
+        console.log(
+            "---------------------------------"
+        );
+
+
+        res.json({
+
+            message:
+                "Projekt erfolgreich geändert.",
+
+            projekt:
+                projekt
+
+        });
 
     }
     catch (error) {
 
         console.error(
-            "Fehler beim Laden der Projekte:"
+            "FEHLER BEIM BEARBEITEN:"
         );
 
         console.error(error);
 
+
         res.status(500).json({
+
             error:
-                "Projekte konnten nicht geladen werden."
+                "Projekt konnte nicht geändert werden.",
+
+            details:
+                error.message
+
+        });
+    }
+});
+
+
+// =====================================================
+// PROJEKT LÖSCHEN
+// =====================================================
+
+app.delete("/api/projekte/:nummer", async (req, res) => {
+
+    try {
+
+        const nummer =
+            String(
+                req.params.nummer
+            ).trim();
+
+
+        console.log(
+            "---------------------------------"
+        );
+
+        console.log(
+            "Projekt wird gelöscht:"
+        );
+
+        console.log(
+            "Projektnummer:",
+            nummer
+        );
+
+
+        // ---------------------------------------------
+        // Erst als String suchen
+        // ---------------------------------------------
+
+        let projekt =
+            await projekteCollection.findOne({
+
+                projektnummer:
+                    nummer
+
+            });
+
+
+        // ---------------------------------------------
+        // Alte Zahlen berücksichtigen
+        // ---------------------------------------------
+
+        if (!projekt) {
+
+            const nummerAlsZahl =
+                Number(nummer);
+
+
+            if (!Number.isNaN(nummerAlsZahl)) {
+
+                projekt =
+                    await projekteCollection.findOne({
+
+                        projektnummer:
+                            nummerAlsZahl
+
+                    });
+            }
+        }
+
+
+        if (!projekt) {
+
+            return res.status(404).json({
+
+                error:
+                    "Projekt nicht gefunden."
+
+            });
+        }
+
+
+        // ---------------------------------------------
+        // Löschen
+        // ---------------------------------------------
+
+        const result =
+            await projekteCollection.deleteOne({
+
+                _id:
+                    projekt._id
+
+            });
+
+
+        if (
+            result.deletedCount === 0
+        ) {
+
+            return res.status(404).json({
+
+                error:
+                    "Projekt konnte nicht gelöscht werden."
+
+            });
+        }
+
+
+        console.log(
+            "Projekt erfolgreich gelöscht."
+        );
+
+        console.log(
+            "---------------------------------"
+        );
+
+
+        res.json({
+
+            message:
+                "Projekt erfolgreich gelöscht."
+
+        });
+
+    }
+    catch (error) {
+
+        console.error(
+            "FEHLER BEIM LÖSCHEN:"
+        );
+
+        console.error(error);
+
+
+        res.status(500).json({
+
+            error:
+                "Projekt konnte nicht gelöscht werden.",
+
+            details:
+                error.message
+
         });
     }
 });
@@ -850,7 +1378,9 @@ async function startServer() {
 
 
         app.listen(
+
             PORT,
+
             () => {
 
                 console.log(
@@ -869,7 +1399,9 @@ async function startServer() {
                 console.log(
                     "================================="
                 );
+
             }
+
         );
 
     }
